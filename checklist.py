@@ -741,8 +741,26 @@ async def main():
                     write_channel_to_m3u(file, channel_name, channel_url, group_title, avg_response_time)
                     channel_counters[channel_name] = 1
 
+    def write_channel_to_txt(file, channel_name, channel_url):
+        file.write(f"{channel_name},{channel_url}\n")
+
+    def write_channels_by_category_txt(file, results, keywords, channel_counters, exclude_keywords=None):
+        for result in results:
+            channel_name, channel_url, speed, avg_response_time = result
+            if match_channel_category(channel_name, keywords, exclude_keywords):
+                if channel_name in channel_counters:
+                    if channel_counters[channel_name] >= result_counter:
+                        continue
+                    write_channel_to_txt(file, channel_name, channel_url)
+                    channel_counters[channel_name] += 1
+                else:
+                    write_channel_to_txt(file, channel_name, channel_url)
+                    channel_counters[channel_name] = 1
+
     # 从配置加载频道分类
     channel_categories = config.get("channel_categories", [])
+
+    current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
     with open("itvlist.m3u", 'w', encoding='utf-8') as file:
         file.write('#EXTM3U\n')
@@ -760,10 +778,23 @@ async def main():
                 exclude_keywords
             )
         
-        # 添加更新时间频道
-        current_time = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
         file.write(f'#EXTINF:-1 tvg-name="{current_time}" tvg-logo="https://gitee.com/mytv-android/myTVlogo/raw/main/img/Dog狗频道.png" group-title="更新时间",{current_time}\n')
         file.write(f"http://example.com/update_time.mp4\n")
+
+    with open("itvlist.txt", "w", encoding="utf-8") as file:
+        for category in channel_categories:
+            file.write(f"{category['name']},#genre#\n")
+            channel_counters = {}
+            exclude_keywords = category.get("exclude_keywords", None)
+            write_channels_by_category_txt(
+                file,
+                results,
+                category["keywords"],
+                channel_counters,
+                exclude_keywords
+            )
+        file.write("更新时间,#genre#\n")
+        file.write(f"{current_time},http://example.com/update_time.mp4\n")
     
     # 计算并输出总耗时
     end_time = time.time()
