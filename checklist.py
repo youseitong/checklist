@@ -8,144 +8,24 @@ from typing import Dict, List, Optional, Any
 import numpy as np
 from urllib.parse import urlparse, urljoin
 import logging
+import json
+
+# 加载配置
+def load_config():
+    try:
+        with open("config.json", "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"加载配置文件失败: {e}")
+        return {"urls": [], "replacement_rules": {}, "regex_rules": [], "channel_categories": []}
+
+config = load_config()
+urls = config.get("urls", [])
 
 # 配置日志 - 降低日志级别以提高性能
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
-    
-urls = [
-"http://101.66.194.1:9901",
-"http://101.66.195.1:9901",
-"http://101.66.198.1:9901",
-"http://101.66.199.1:9901",
-"http://101.74.28.1:9901",
-"http://103.39.222.1:9999",
-"http://103.48.233.1:9901",
-"http://106.118.70.1:9901",
-"http://106.42.34.1:888",
-"http://106.42.35.1:888",
-"http://110.253.83.1:888",
-"http://111.14.181.1:9901",
-"http://111.8.242.1:8085",
-"http://111.9.163.1:9901",
-"http://112.123.243.1:50085",
-"http://112.132.160.1:9901",
-"http://112.16.14.1:9901",
-"http://112.234.21.1:9901",
-"http://112.234.23.1:9901",
-"http://112.26.18.1:9901",
-"http://112.27.145.1:9901",
-"http://112.91.103.1:9919",
-"http://112.99.193.1:9901",
-"http://113.195.162.1:9901",
-"http://113.201.61.1:9901",
-"http://113.25.252.1:9901",
-"http://113.57.93.1:9900",
-"http://115.48.160.1:9901",
-"http://115.59.9.1:9901",
-"http://116.128.242.1:9901",
-"http://116.128.243.1:9902",
-"http://116.9.204.1:9901",
-"http://117.72.36.1:9099",
-"http://117.174.99.1:9901",
-"http://119.125.131.1:9901",
-"http://119.129.172.1:9901",
-"http://1.15.231.1:9901",
-"http://1.180.2.1:9901",
-"http://1.195.130.1:9901",
-"http://1.195.131.1:9901",
-"http://1.197.249.1:9901",
-"http://1.197.250.1:9901",
-"http://120.198.101.1:9901",
-"http://120.198.95.1:9901",
-"http://120.238.94.1:9901",
-"http://121.19.134.1:808",
-"http://121.29.191.1:8000",
-"http://121.43.180.1:9901",
-"http://121.56.39.1:808",
-"http://122.227.100.1:9901",
-"http://123.113.96.1:9901",
-"http://123.129.70.1:9901",
-"http://123.130.84.1:8154",
-"http://123.13.247.1:7000",
-"http://123.139.57.1:9901",
-"http://123.160.235.1:9901",
-"http://123.182.60.1:9002",
-"http://123.54.220.1:9901",
-"http://124.116.183.1:9901",
-"http://124.152.247.1:2001",
-"http://125.125.236.1:9901",
-"http://124.228.160.1:9901",
-"http://125.42.148.1:9901",
-"http://125.42.150.1:9901",
-"http://125.42.228.1:9999",
-"http://125.43.244.1:9901",
-"http://159.75.75.1:8888",
-"http://171.9.68.1:8099",
-"http://180.213.174.1:9901",
-"http://182.114.214.1:9901",
-"http://182.114.48.1:9901",
-"http://182.114.49.1:9901",
-"http://182.120.229.1:9901",
-"http://183.10.180.1:9901",
-"http://183.131.246.1:9901",
-"http://183.166.62.1:81",
-"http://183.215.134.1:19901",
-"http://183.237.95.1:9901",
-"http://183.255.41.1:9901",
-"http://1.87.218.1:7878",
-"http://211.142.224.1:2023",
-"http://218.13.170.1:9901",
-"http://218.15.183.1:9901",
-"http://218.3.138.1:1111",
-"http://218.77.81.1:9901",
-"http://218.87.237.1:9901",
-"http://218.92.37.1:9901",
-"http://220.248.173.1:9901",
-"http://221.13.234.1:9901",
-"http://221.13.235.1:9901",
-"http://221.193.168.1:9901",
-"http://221.2.148.1:8154",
-"http://222.134.245.1:9901",
-"http://222.169.85.1:9901",
-"http://222.172.183.1:808",
-"http://222.240.220.1:9901",
-"http://222.243.221.1:9901",
-"http://223.241.247.1:85",
-"http://223.241.247.1:9901",
-"http://36.136.38.1:9901",
-"http://36.40.237.1:9999",
-"http://39.152.171.1:9901",
-"http://39.164.160.1:9901",
-"http://43.139.182.1:9901",
-"http://47.109.181.1:88",
-"http://47.116.70.1:9901",
-"http://49.232.48.1:9901",
-"http://49.234.31.1:7027",
-"http://49.234.31.1:7033",
-"http://49.234.31.1:7034",
-"http://49.234.31.1:7040",
-"http://49.234.31.1:7045",
-"http://49.234.31.1:7055",
-"http://49.234.31.1:7062",
-"http://49.234.31.1:7072",
-"http://49.234.31.1:7150",
-"http://49.234.31.1:7710",
-"http://58.19.133.1:9901",
-"http://58.19.43.1:9901",
-"http://58.57.40.1:9901",
-"http://59.38.45.1:8090",
-"http://59.39.89.1:60901",
-"http://60.255.47.1:8801",
-"http://61.136.172.1:9901",
-"http://61.156.228.1:8154",
-"http://61.184.46.1:9901",
-"http://61.49.248.1:9901",
-"http://81.70.56.1:9901",
-"http://81.71.102.1:9901",
-"http://tpc.x3322.net:9901",
-"http://hczn.x3322.net:9901",
-]
+
 
 # 异步HTTP请求工具函数
 async def fetch_url(session, url, headers=None, timeout=5, stream=False):
@@ -524,79 +404,9 @@ def clean_channel_name(name):
     """清理频道名称,统一格式"""
     # 将名称转换为大写
     name = name.upper()
-    # 定义所有替换规则
-    replacement_rules = {
-        # 基础清理规则
-        "basic": {
-            "cctv": "CCTV", 
-            "中央": "CCTV", 
-            "央视": "CCTV",
-            "CCTVNEWS": "CGTN",
-            "高清": "", 
-            "超高": "", 
-            "HD": "", 
-            "标清": "",
-            "频道": "", 
-            "*": "", 
-            "-": "", 
-            " ": "", 
-            "PLUS": "+", 
-            "＋": "+",
-            "(": "", 
-            ")": "",
-            "超":"",
-            "KAKU少儿": "卡酷动画",
-            "卡通动画": "卡酷动画",
-            "酷卡动画": "卡酷动画",
-            "北京少儿": "卡酷动画",
-            "北京卡通": "卡酷动画",
-            "卡酷少儿": "卡酷动画",
-            "卡酷卡通": "卡酷动画",
-            "卡酷动漫": "卡酷动画",
-            "嘉佳卡": "嘉佳卡通",
-            "佳佳卡通": "嘉佳卡通",
-            "嘉佳卡通通": "嘉佳卡通",
-            "广东嘉佳卡通": "嘉佳卡通",
-            "内蒙卫视":"内蒙古卫视",
-        },
-        # CCTV频道专用替换规则
-        "cctv_channels": {
-            "CCTV1综合": "CCTV1",
-            "CCTV2财经": "CCTV2", 
-            "CCTV3综艺": "CCTV3",
-            "CCTV4国际": "CCTV4", 
-            "CCTV4中文国际": "CCTV4", 
-            "CCTV4欧洲": "CCTV4",
-            "CCTV5体育": "CCTV5", 
-            "CCTV6电影": "CCTV6", 
-            "CCTV7军事": "CCTV7",
-            "CCTV7军农": "CCTV7", 
-            "CCTV7农业": "CCTV7", 
-            "CCTV7国防军事": "CCTV7",
-            "CCTV17军事": "CCTV7",
-            "CCTV8电视剧": "CCTV8", 
-            "CCTV9记录": "CCTV9", 
-            "CCTV9纪录": "CCTV9",
-            "CCTV10科教": "CCTV10", 
-            "CCTV11戏曲": "CCTV11", 
-            "CCTV12社会与法": "CCTV12",
-            "CCTV13新闻": "CCTV13", 
-            "CCTV新闻": "CCTV13", 
-            "CCTV14少儿": "CCTV14",
-            "CCTV15音乐": "CCTV15", 
-            "CCTV16奥林匹克": "CCTV16",
-            "CCTV17农业农村": "CCTV17", 
-            "CCTV17农业": "CCTV17",
-            "CCTV5+体育赛视": "CCTV5+", 
-            "CCTV5+体育赛事": "CCTV5+", 
-            "CCTV5+体育": "CCTV5+"
-        }
-    }
-    
-    # 正则替换规则
-    regex_rules = [
-        (r"CCTV(\d+)台", r"CCTV\1")
-    ]
+    # 从配置加载替换规则
+    replacement_rules = config.get("replacement_rules", {})
+    regex_rules = config.get("regex_rules", [])
     
     # 执行所有替换规则
     for rule_type, rules in replacement_rules.items():
@@ -673,10 +483,22 @@ async def check_urls(session, urls, semaphore):
         for modified_url in modified_urls:
             task = asyncio.create_task(is_url_accessible(session, modified_url, semaphore))
             tasks.append(task)
-            logger.debug(f"Checking {modified_url} ...")
-        logger.debug(f"Checking {url} ...")
-    results = await asyncio.gather(*tasks)
-    valid_urls = [result for result in results if result]
+
+    total_tasks = len(tasks)
+    logger.info(f"开始检测 {total_tasks} 个衍生URL的连通性，这可能需要一些时间...")
+    
+    valid_urls = []
+    completed = 0
+    for f in asyncio.as_completed(tasks):
+        result = await f
+        completed += 1
+        if result:
+            valid_urls.append(result)
+        
+        # 每完成1000个任务打印一次进度
+        if completed % 1000 == 0 or completed == total_tasks:
+            logger.info(f"URL检测进度: {completed}/{total_tasks} (发现有效URL: {len(valid_urls)} 个)")
+            
     return valid_urls
 
 async def fetch_json(session, url, semaphore):
@@ -754,12 +576,12 @@ async def main():
     unique_urls = set(x_urls)
 
     # 优化并发控制和连接池参数
-    semaphore = asyncio.Semaphore(100)  # 增加并发数
+    semaphore = asyncio.Semaphore(500)  # URL扫描提高并发数
     
     # 配置连接器,进一步优化网络性能
     connector = aiohttp.TCPConnector(
-        limit=300,           # 增加总连接数
-        limit_per_host=50,   # 增加每主机连接数
+        limit=500,           # 增加总连接数
+        limit_per_host=100,  # 增加每主机连接数
         ttl_dns_cache=300,   # DNS缓存时间
         use_dns_cache=True,
         keepalive_timeout=30, # 减少Keep-alive超时，释放资源更快
@@ -775,6 +597,7 @@ async def main():
         try:
             # 快速检查URL是否可达，避免不必要的TS流检测
             if not await is_url_accessible(session, channel_url, semaphore):
+                processed_count += 1
                 error_channel = channel_name, channel_url
                 error_channels.append(error_channel)
                 print_progress("不可达", channel_name, channel_url)
@@ -793,6 +616,7 @@ async def main():
                     avg_response_time = float('inf')
                 
                 # 更新结果
+                processed_count += 1
                 if is_stable:
                     result = channel_name, channel_url, "稳定", avg_response_time
                     results.append(result)
@@ -803,16 +627,16 @@ async def main():
                     print_progress("不稳定", channel_name, channel_url)
         except Exception as e:
             # 处理异常
+            processed_count += 1
             error_channel = channel_name, channel_url
             error_channels.append(error_channel)
             print_progress("异常", channel_name, error_msg=str(e))
-        finally:
-            processed_count += 1
     
     def print_progress(status, channel_name, channel_url=None, error_msg=None):
         """打印检测进度信息"""
         numberx = processed_count / total_count * 100 if total_count > 0 else 0
         
+        # 只在DEBUG级别打印每个频道的详细结果
         if status == "稳定":
             logger.debug(f"稳定频道：{channel_name} - {channel_url}")
         elif status == "不稳定":
@@ -820,7 +644,9 @@ async def main():
         elif status == "异常":
             logger.debug(f"检测异常频道（已剔除）：{channel_name} - {error_msg}")
         
-        logger.debug(f"有效频道：{len(results)} 个, 无效频道：{len(error_channels)} 个, 总频道：{total_count} 个, 总进度：{numberx:.2f} %。")
+        # 定期在INFO级别打印总体进度，或完成时打印
+        if processed_count > 0 and (processed_count % 50 == 0 or processed_count == total_count):
+            logger.info(f"频道检测进度: {processed_count}/{total_count} ({numberx:.1f}%) | 有效: {len(results)} | 无效: {len(error_channels)}")
     
     def channel_key(channel_name):
         match = re.search(r'\d+', channel_name)
@@ -831,7 +657,7 @@ async def main():
             return 99999
     
     # 创建信号量控制并发
-    channel_semaphore = asyncio.Semaphore(10)  
+    channel_semaphore = asyncio.Semaphore(50)  
     
     # 所有操作都在同一个session上下文中进行,避免session关闭问题
     async with aiohttp.ClientSession(
@@ -842,6 +668,7 @@ async def main():
         valid_urls = await check_urls(session, unique_urls, semaphore)
         
         # 2. 获取所有频道信息
+        logger.info(f"开始从 {len(valid_urls)} 个有效URL中获取频道列表...")
         tasks = []
         for url in valid_urls:
             task = asyncio.create_task(fetch_json(session, url, semaphore))
@@ -852,8 +679,10 @@ async def main():
         
         # 3. 更新总频道数
         total_count = len(all_results)
+        logger.info(f"获取频道列表完成，共解析出 {total_count} 个频道")
         
         # 4. 创建并执行频道检测任务
+        logger.info("开始检测频道的可用性，这可能需要较长时间...")
         channel_tasks = []
         for result in all_results:
             channel_name, channel_url = result.split(',')
@@ -912,18 +741,8 @@ async def main():
                     write_channel_to_m3u(file, channel_name, channel_url, group_title, avg_response_time)
                     channel_counters[channel_name] = 1
 
-    # 定义频道分类配置
-    channel_categories = [
-        {"name": "央视频道","keywords": ["CCTV","CGTN","CETV"]},
-        {"name": "卫视频道","keywords": ["卫视"]},
-        {"name": "影视频道","keywords": ["电影","影院","影视","剧场","电视剧"]},
-        {"name": "科教频道","keywords": ["CETV","教育","科教","学堂","世界地理","科学"]},
-        {"name": "卡通频道","keywords": ["CCTV14","少儿","卡通","动画","儿童","宝贝","哈哈"]},
-        {"name": "娱乐综艺","keywords": ["相声小品","戏曲","音乐","综艺","大片","梨园"]},
-        {"name": "体育频道","keywords": ["体育","赛事","奥运","冬奥","英超","NBA","垂钓","CETV4","足球","台球","CCTV5","CCTV5+","CCTV16","武术","IPTV5+","高尔夫"]},
-        # exclude_keywords 是排除的关键字
-        {"name": "其他频道","keywords": [""],"exclude_keywords": ["CCTV","CGTN","卫视","电影","影院","影视","剧场","电视剧","IPTV","CETV","教育","科教","学堂","科学","少儿","卡通","动画","儿童","宝贝","哈哈","体育","赛事","奥运","冬奥","英超","NBA","垂钓","教育","足球","台球","武术","高尔夫","测试","快乐购","广告","购物","相声小品","戏曲","音乐","综艺","大片","梨园"]}
-    ]
+    # 从配置加载频道分类
+    channel_categories = config.get("channel_categories", [])
 
     with open("itvlist.m3u", 'w', encoding='utf-8') as file:
         file.write('#EXTM3U\n')
@@ -960,7 +779,7 @@ async def main():
     logger.info(f"无效频道: {len(error_channels)}个")
     logger.info(f"成功率: {len(results)/len(all_results)*100:.2f}%" if len(all_results) > 0 else "成功率: 0%")
     
-    path = "./checklist/README.md"
+    path = "./README.md"
     s, e = "<!-- LOG_START -->", "<!-- LOG_END -->"
     nl = "\n"
     log = [
