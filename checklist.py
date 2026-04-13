@@ -5,10 +5,10 @@ from datetime import datetime
 import time
 from collections import defaultdict
 from typing import Dict, List, Optional, Any
-import numpy as np
 from urllib.parse import urlparse, urljoin
 import logging
 import json
+import os
 
 # 加载配置
 def load_config():
@@ -169,7 +169,7 @@ class TSStreamChecker:
         if len(self.stats["rate_history"]) < 2:  # 从3个减少到2个样本
             # 如果有响应时间数据，则使用响应时间作为判断依据
             if self.stats["response_times"]:
-                avg_response_time = np.mean(self.stats["response_times"])
+                avg_response_time = sum(self.stats["response_times"]) / len(self.stats["response_times"])
                 return avg_response_time < self.response_time_threshold
             logger.debug(f"样本不足,只有{len(self.stats['rate_history'])}个速率样本")
             return False
@@ -190,7 +190,7 @@ class TSStreamChecker:
             has_low_loss = loss_rate < 0.05  # 从0.01放宽到0.05
             
             # 计算平均响应时间
-            avg_response_time = np.mean(self.stats["response_times"]) if self.stats["response_times"] else float('inf')
+            avg_response_time = sum(self.stats["response_times"]) / len(self.stats["response_times"]) if self.stats["response_times"] else float('inf')
             is_fast_response = avg_response_time < self.response_time_threshold
             
             # 综合判断：稳定或丢包率低且响应快
@@ -202,10 +202,10 @@ class TSStreamChecker:
             
             return result
         except Exception as e:
-            logger.error(f"评估检测结果时出错: {str(e)}")
+            logger.error("评估检测结果时出错: %s", e)
             # 出错时使用响应时间作为后备判断
             if self.stats["response_times"]:
-                return np.mean(self.stats["response_times"]) < self.response_time_threshold
+                return sum(self.stats["response_times"]) / len(self.stats["response_times"]) < self.response_time_threshold
             return False
 
     async def _check_ts_stream(self, session, url: str) -> bool:
@@ -555,6 +555,16 @@ async def main():
     all_results = []
     total_count = 0  # 初始化总频道数为0
     
+    # 读取缓存的有效URL
+    cached_valid_urls = []
+    if os.path.exists("valid_ips.json"):
+        try:
+            with open("valid_ips.json", "r", encoding="utf-8") as f:
+                cached_valid_urls = json.load(f)
+            logger.info(f"读取到上次缓存的 {len(cached_valid_urls)} 个有效URL")
+        except Exception as e:
+            logger.warning(f"读取有效URL缓存失败: {e}")
+
     x_urls = []
     for url in urls:
         url = url.strip()
@@ -665,7 +675,26 @@ async def main():
         timeout=timeout
     ) as session:
         # 1. 检查URL有效性
-        valid_urls = await check_urls(session, unique_urls, semaphore)
+        valid_urls = []
+        
+        # 如果有缓存，优先检测缓存的URL是否仍然有效
+        if cached_valid_urls:
+            logger.info("开始检测缓存中的URL...")
+            valid_urls = await check_urls(session, cached_valid_urls, semaphore)
+            
+        # 如果缓存中没有或者缓存失效导致有效URL太少（比如少于2个），则全量扫描
+        if len(valid_urls) < 2:
+            if cached_valid_urls:
+                logger.info("缓存的有效URL过少，重新进行全网段扫描...")
+            valid_urls = await check_urls(session, unique_urls, semaphore)
+            
+        # 将最新有效的URL保存到缓存文件
+        if valid_urls:
+            try:
+                with open("valid_ips.json", "w", encoding="utf-8") as f:
+                    json.dump(valid_urls, f, ensure_ascii=False, indent=4)
+            except Exception as e:
+                logger.warning(f"保存有效URL缓存失败: {e}")
         
         # 2. 获取所有频道信息
         logger.info(f"开始从 {len(valid_urls)} 个有效URL中获取频道列表...")

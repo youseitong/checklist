@@ -18,11 +18,12 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
+        cache: 'pip'
 
     - name: 安装依赖
       run: |
         python -m pip install --upgrade pip
-        pip install aiohttp numpy
+        pip install aiohttp
 
     - name: 运行更新脚本
       run: python checklist.py
@@ -31,7 +32,7 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add itvlist.m3u itvlist.txt README.md
+        git add itvlist.m3u itvlist.txt README.md valid_ips.json
         # 只有在有文件变动时才提交
-        git diff --quiet && git diff --staged --quiet || git commit -m "Auto update itvlist.m3u"
+        git diff --quiet && git diff --staged --quiet || git commit -m "Auto update tv sources"
         git push
