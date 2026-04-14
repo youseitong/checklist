@@ -1,30 +1,56 @@
-# checklist
-参考：
+# Auto-IPTV-Checker
 
-https://github.com/ssili126/tv
+**高性能的 IPTV 电视源自动检测与生成工具**
 
-https://github.com/seadai794/tv
+本项目基于 Python 的 `asyncio` 和 `aiohttp` 异步架构，能够以极高的并发从海量基准 IP 网段中盲扫、解析并检测稳定的电视直播源。项目支持配置抽离、TS 流媒体内存解析测速、自动按分类和响应时间排序，并结合 GitHub Actions 实现了每天全自动化的无感更新。
 
+## 🌟 核心特性
 
-代理方式：https://cdn.jsdelivr.net/gh/mzky/checklist@master/itvlist.m3u
+- **🚀 极速异步并发**：完全摒弃传统阻塞式的磁盘读写检测，改用纯内存异步抓取 TS 数据包校验连续性，单次全网段（3万+IP）扫源仅需数分钟。
+- **💾 有效源智能缓存**：引入 `valid_ips.json` 缓存机制，日常更新优先复用已知有效源，将耗时从数分钟缩减至十秒级。
+- **⚙️ 配置与代码解耦**：所有基准 URL、频道分类（`channel_categories`）、频道名正则及替换规则均提取至独立的 `config.json`，修改规则零门槛。
+- **📺 多格式完美输出**：每次执行同步生成带台标（logo）、延迟信息（response-time）的 `itvlist.m3u` 以及兼容 TVBox 的分组文本 `itvlist.txt`。
+- **🤖 GitHub Actions 全自动**：配置了自动化工作流，每天定时触发更新，实现“一次配置，终身免维护”的白嫖级家庭电视源中心。
 
-播放源：https://raw.githubusercontent.com/mzky/checklist/master/itvlist.m3u
+## 🔗 获取最新电视源
 
+你可以直接将以下链接填入你的播放器（如 TVBox、Kodi、IPTV Pro 等）：
 
-```
-1、探测ts稳定性和响应时间（慢但准确，完成需要30多分钟，加线程数可以缩短时间，但易报错）
-2、在频道下的播放源以响应时间排序
-3、增加日志功能
-4、使用“当前”全部可用的ip列表
-5、全部使用异步多线程
-6、去掉了经常导致异常的库eventlet
-7、增加可自定义的分类，见代码注释
-8、通过阿里云[北京电信]线路服务器，每天将运行结果自动更新到当前github
-9、其它线路，如联通\电信\广电等宽带，建议在TV同网络下执行并获取播放源
-```
+### M3U 格式订阅源
+- 原始链接：`https://raw.githubusercontent.com/youseitong/checklist/master/itvlist.m3u`
+- CDN 镜像加速（推荐）：`https://cdn.jsdelivr.net/gh/youseitong/checklist@master/itvlist.m3u`
+
+### TXT 格式订阅源（适合 TVBox）
+- 原始链接：`https://raw.githubusercontent.com/youseitong/checklist/master/itvlist.txt`
+- CDN 镜像加速（推荐）：`https://cdn.jsdelivr.net/gh/youseitong/checklist@master/itvlist.txt`
+
+## 🛠️ 本地运行与配置
+
+如果你希望在本地（尤其是你所在城市的运营商宽带环境下）跑一次，以获取最适合你本地网络的高质量源：
+
+1. 确保安装了 Python 3.8+ 环境。
+2. 安装唯一依赖：
+   ```bash
+   pip install aiohttp
+   ```
+3. 根据需要修改 `config.json` 中的频道分组和替换规则。
+4. 执行主程序：
+   ```bash
+   python3 checklist.py
+   ```
+5. 生成完毕后，可以在本地快速启动 HTTP 服务来分享给电视：
+   ```bash
+   python3 -m http.server 8000
+   ```
+   随后电视访问 `http://你的电脑IP:8000/itvall/itvlist.txt` 即可。
+
+## 📸 运行截图
 <img width="738" height="288" alt="image" src="https://github.com/user-attachments/assets/fd4bf98a-f718-4f24-92ac-51dc39a382f5" />
 <img width="1912" height="954" alt="image" src="https://github.com/user-attachments/assets/91cd6e65-1053-48db-9081-79828ef42923" />
 <img width="720" height="327" alt="image" src="https://github.com/user-attachments/assets/b3ad6c9a-b61e-4ec4-9f3e-4517f925eb56" />
+
+---
+## 📜 自动更新运行日志
 
 
 
