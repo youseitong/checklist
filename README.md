@@ -1,4 +1,4 @@
-# Auto-IPTV-Checker
+# Auto-TV-Checker
 
 **高性能的 IPTV 电视源自动检测与生成工具**
 
