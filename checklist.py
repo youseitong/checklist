@@ -26,6 +26,10 @@ urls = config.get("urls", [])
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger(__name__)
 
+CHECK_MODE = os.getenv("CHECK_MODE", "full").lower()
+SCAN_TIMEOUT = float(os.getenv("SCAN_TIMEOUT", "5"))
+CHANNEL_TIMEOUT = float(os.getenv("CHANNEL_TIMEOUT", "15"))
+
 
 # 异步HTTP请求工具函数
 async def fetch_url(session, url, headers=None, timeout=5, stream=False):
@@ -430,6 +434,9 @@ async def modify_urls(url):
     """使用urllib.parse解析URL并生成修改后的URL列表 - 优化版本"""
     modified_urls = []
     ip_end = "/iptv/live/1000.json?key=txiptv"
+
+    if "/iptv/live/1000.json" in url:
+        return [url]
     
     if contains_domain(url):
         modified_url = f"{url}{ip_end}"
@@ -460,12 +467,12 @@ async def modify_urls(url):
     
     return modified_urls
 
-async def is_url_accessible(session, url, semaphore):
+async def is_url_accessible(session, url, semaphore, timeout_total=5, headers=None):
     async with semaphore:
         try:
-            timeout = aiohttp.ClientTimeout(total=5)  # 按规范设置5秒超时
-            async with session.get(url, timeout=timeout) as response:
-                if response.status == 200:
+            timeout = aiohttp.ClientTimeout(total=timeout_total)
+            async with session.get(url, timeout=timeout, headers=headers) as response:
+                if response.status in (200, 206):
                     logger.debug(f"发现可用URL: {url}")
                     return url
                 else:
@@ -481,7 +488,7 @@ async def check_urls(session, urls, semaphore):
         url = url.strip()
         modified_urls = await modify_urls(url)
         for modified_url in modified_urls:
-            task = asyncio.create_task(is_url_accessible(session, modified_url, semaphore))
+            task = asyncio.create_task(is_url_accessible(session, modified_url, semaphore, timeout_total=SCAN_TIMEOUT))
             tasks.append(task)
 
     total_tasks = len(tasks)
@@ -606,7 +613,8 @@ async def main():
         nonlocal processed_count
         try:
             # 快速检查URL是否可达，避免不必要的TS流检测
-            if not await is_url_accessible(session, channel_url, semaphore):
+            range_headers = {"Range": "bytes=0-2047"}
+            if not await is_url_accessible(session, channel_url, semaphore, timeout_total=CHANNEL_TIMEOUT, headers=range_headers):
                 processed_count += 1
                 error_channel = channel_name, channel_url
                 error_channels.append(error_channel)
@@ -614,16 +622,34 @@ async def main():
                 return
             
             async with semaphore:
-                # 检测流稳定性 - 使用TSStreamChecker进行真正的TS流解析
-                checker = TSStreamChecker()
-                is_stable = await checker.check_stream(session, channel_url)
-                
-                # 获取平均响应时间 - 优化：减少计算开销
-                if checker.stats["response_times"]:
-                    # 使用简单平均值而不是numpy
-                    avg_response_time = sum(checker.stats["response_times"]) / len(checker.stats["response_times"])
+                if CHECK_MODE == "fast":
+                    avg_response_time = float("inf")
+                    is_stable = False
+                    t0 = time.time()
+                    lower_url = channel_url.lower()
+                    if lower_url.endswith((".m3u", ".m3u8")):
+                        text = await fetch_url(session, channel_url, timeout=CHANNEL_TIMEOUT)
+                        if text:
+                            has_media = any(line.strip() and not line.strip().startswith("#") for line in text.splitlines())
+                            is_stable = has_media
+                    else:
+                        timeout = aiohttp.ClientTimeout(total=CHANNEL_TIMEOUT)
+                        try:
+                            async with session.get(channel_url, timeout=timeout, headers=range_headers) as response:
+                                if response.status in (200, 206):
+                                    await response.content.read(2048)
+                                    is_stable = True
+                        except Exception:
+                            is_stable = False
+                    if is_stable:
+                        avg_response_time = (time.time() - t0) * 1000
                 else:
-                    avg_response_time = float('inf')
+                    checker = TSStreamChecker(request_timeout=int(CHANNEL_TIMEOUT))
+                    is_stable = await checker.check_stream(session, channel_url)
+                    if checker.stats["response_times"]:
+                        avg_response_time = sum(checker.stats["response_times"]) / len(checker.stats["response_times"])
+                    else:
+                        avg_response_time = float('inf')
                 
                 # 更新结果
                 processed_count += 1
